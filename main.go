@@ -7,6 +7,7 @@ import (
     "encoding/json"
     "io/ioutil"
     "log"
+    "time"
     "os"
 
     "github.com/gorilla/mux"
@@ -14,78 +15,101 @@ import (
     "github.com/xialingxiao/go-example/cache/memory"
 )
 
-var storage cache.Storage = memory.NewStorage()
-var duration int64 = 3600
 
-type Intermediate struct {
+// declare the top level variable(s)
+var PORT string // the port to listen to
+
+// initialize the in-memory storage
+var storage cache.Storage = memory.NewStorage()
+
+
+// we only care about two fields in the reponse
+// will ignore all other fields and errors
+// all exchange rates use USD as base
+type OpenExResponse struct {
     Rates map[string]float64
     Timestamp int64
 }
 
-func get_rates(api_id string) []byte {
-    resp, err := http.Get("https://openexchangerates.org/api/latest.json?app_id="+api_id)
-    if err != nil {
-        // handle error
-    }
-    defer resp.Body.Close()
-    body, err := ioutil.ReadAll(resp.Body)
-    return body
+type SuccessResponse struct {
+    Rates map[string]float64 `json:"rates"`
+    Expiration string `json:"expiration"`
 }
 
+func get_rates(api_id string) (int, []byte) {
+    resp, _ := http.Get("https://openexchangerates.org/api/latest.json?app_id="+api_id)
+    defer resp.Body.Close()
+    body, _ := ioutil.ReadAll(resp.Body)
+    return resp.StatusCode, body
+}
 
-func cached(request func(string) []byte, api_id string) func(w http.ResponseWriter, r *http.Request) {
+func cached(request func(string) (int, []byte), api_id string) func(w http.ResponseWriter, r *http.Request) {
     return func(w http.ResponseWriter, r *http.Request) {
-        rates_map := storage.Get()
-        if rates_map == nil {
-            fmt.Println("Not cached!!!!!")
-            var response Intermediate
-            temp := request(api_id)
-            err := json.Unmarshal(temp, &response)
+        w.Header().Set("content-type", "application/json")
+        rates, expiration := storage.Get()
+        if rates == nil {
+
+            log.Println(fmt.Sprintf("Not cached, retrieve latest from openexchangerates.org"))
+            var openExResponse OpenExResponse
+            statusCode, temp := request(api_id)
+            err := json.Unmarshal(temp, &openExResponse)
 
             if err != nil {
-                fmt.Println("err")
+                log.Println(fmt.Sprintf("Error %q", err.Error()))
                 http.Error(w, err.Error(), http.StatusInternalServerError)
                 return
             }
-            rates_map = response.Rates
-            timestamp := response.Timestamp
-            storage.Set(rates_map, timestamp+duration)
+            if openExResponse.Timestamp == 0 {
+                log.Println(fmt.Sprintf("Error querying openexchangerates.org, make sure to start the server with the correct api_id"))
+                w.WriteHeader(statusCode)
+                w.Write([]byte(`{"error": "Error querying openexchangerates.org, make sure to start the server with the correct api_id"}`))
+                return
+            }
+
+            rates = openExResponse.Rates
+            expiration = openExResponse.Timestamp+3600
+            storage.Set(rates, expiration)
         }
         currency := r.URL.Query().Get("currency")
-        return_map := make(map[string]float64)
+        successResponse := SuccessResponse{}
+        successResponse.Expiration = time.Unix(expiration, 0).Format("2006-01-02 15:04:05")
         if len(currency)>0 {
-            fmt.Println("single currency")
-            if rate, ok := rates_map[currency]; ok {
-                return_map[currency] = rate
+            log.Println(fmt.Sprintf("Query for exchange rate for %q", currency))
+            if rate, ok := rates[currency]; ok {
+                successResponse.Rates = make(map[string]float64)
+                successResponse.Rates[currency] = rate
             }
         } else {
-
-            fmt.Println("return all")
-            return_map = rates_map 
+            log.Println(fmt.Sprintf("Query for all exchange rates"))
+            successResponse.Rates = rates 
         }
-        rates_bytes, err := json.Marshal(return_map)
-        if err != nil {
-            fmt.Println(err)
-            http.Error(w, err.Error(), http.StatusInternalServerError)
-            return
-        }
+        successResponseBytes, _ := json.Marshal(successResponse)
 
         w.Header().Set("content-type", "application/json")
-        w.Write(rates_bytes)
+        w.Write(successResponseBytes)
+        log.Println(fmt.Sprintf("Query ended successfully"))
     }
 }
 
-
 func main() {
+    // use environment variable for setting the server port, defaults to 8080
+    PORT = os.Getenv("PORT")
+    if PORT == "" {
+        PORT = "8080"
+    }
+
+    // You would need to manually input your api_id upon start
     fmt.Printf("Enter your api_id: ")
     api_id, _ := gopass.GetPasswdMasked() // Masked
 
+    // Initialise the router
     router := mux.NewRouter().StrictSlash(true)
-    router.HandleFunc("/current_rates", cached(get_rates, string(api_id)))
-    port := os.Getenv("PORT")
-    if port == "" {
-        port = "8080"
-    }
 
-    log.Fatal(http.ListenAndServe(":"+port, router))
+    // The only api endpoint we will implement
+    router.HandleFunc("/current_rates", cached(get_rates, string(api_id)))
+
+
+
+    // start server
+    log.Fatal(http.ListenAndServe(":"+PORT, router))
 }

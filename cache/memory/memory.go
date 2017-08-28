@@ -35,7 +35,7 @@ func NewStorage() *Storage {
 }
 
 //Get cached rates
-func (s Storage) Get() map[string]float64 {
+func (s Storage) Get() (map[string]float64, int64) {
 
     s.mu.RLock()
     defer s.mu.RUnlock()
@@ -44,10 +44,10 @@ func (s Storage) Get() map[string]float64 {
 
     if item.Expired() {
         s.item = Item{}
-        return nil
+        return nil, 0
     }
 
-    return item.Rates
+    return item.Rates, item.Expiration
 }
 
 //Set a cached rates
