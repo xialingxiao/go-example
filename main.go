@@ -111,8 +111,6 @@ func main() {
     // The only api endpoint we will implement
     router.HandleFunc("/current_rates", cached(get_rates, string(api_id)))
 
-
-
     // start server
     log.Fatal(http.ListenAndServe(":"+PORT, router))
 }
