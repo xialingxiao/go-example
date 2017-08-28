@@ -15,4 +15,12 @@ Openexchange to be used as the source of forex data and retrieved rates should b
 
 #### Things you may need:
 - https://tour.golang.org/welcome/1
-- https://docs.openexchangerates.org/ (you may need to sign up for a free API key)
+- https://docs.openexchangerates.org/ (you would need to sign up for a free API key)
+
+#### To run
+`make run` should start the web application at port `8080`
+
+#### To test
+Run `make test` should test the web application
+
+
