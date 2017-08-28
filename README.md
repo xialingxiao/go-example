@@ -21,6 +21,6 @@ Openexchange to be used as the source of forex data and retrieved rates should b
 `make run` should start the web application at port `8080`
 
 #### To test
-Run `make test` should test the web application
+`make test` should test the web application
 
 
