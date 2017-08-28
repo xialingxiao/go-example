@@ -43,15 +43,16 @@ func get_rates(api_id string) (int, []byte) {
     return resp.StatusCode, body
 }
 
-func cached(request func(string) (int, []byte), api_id string) func(w http.ResponseWriter, r *http.Request) {
+func cached(get_latest func(string) (int, []byte), api_id string) func(w http.ResponseWriter, r *http.Request) {
     return func(w http.ResponseWriter, r *http.Request) {
         w.Header().Set("content-type", "application/json")
         rates, expiration := storage.Get()
-        if rates == nil {
 
-            log.Println(fmt.Sprintf("Not cached, retrieve latest from openexchangerates.org"))
+        if rates == nil {
+            // Exchange rates not cached or have expired
+            log.Println(fmt.Sprintf("Exchange rates not cached or have expired, needs to retrieve latest from openexchangerates.org"))
             var openExResponse OpenExResponse
-            statusCode, temp := request(api_id)
+            statusCode, temp := get_latest(api_id)
             err := json.Unmarshal(temp, &openExResponse)
 
             if err != nil {
@@ -66,10 +67,12 @@ func cached(request func(string) (int, []byte), api_id string) func(w http.Respo
                 return
             }
 
+            // initialize rates and expiration
             rates = openExResponse.Rates
             expiration = openExResponse.Timestamp+3600
             storage.Set(rates, expiration)
         }
+
         currency := r.URL.Query().Get("currency")
         successResponse := SuccessResponse{}
         successResponse.Expiration = time.Unix(expiration, 0).Format("2006-01-02 15:04:05")
