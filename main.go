@@ -74,7 +74,7 @@ func cached(request func(string) (int, []byte), api_id string) func(w http.Respo
         successResponse := SuccessResponse{}
         successResponse.Expiration = time.Unix(expiration, 0).Format("2006-01-02 15:04:05")
         if len(currency)>0 {
-            log.Println(fmt.Sprintf("Query for exchange rate for %q", currency))
+            log.Println(fmt.Sprintf("Query for exchange rate of %q", currency))
             if rate, ok := rates[currency]; ok {
                 successResponse.Rates = make(map[string]float64)
                 successResponse.Rates[currency] = rate
