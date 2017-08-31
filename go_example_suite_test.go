@@ -118,8 +118,9 @@ var _ = Describe("GoExample", func() {
     Describe("First response", func() {
         Context("When querying the api for the first time", func() {
             It("Should return exchange rates", func() {
-                apiResponse := HTTPGetJson("http://127.0.0.1:8080/current_rates")
+                apiResponse := HTTPGetJson("http://127.0.0.1:8080/current_rates?currency=VUV")
                 expiration1 = apiResponse.Expiration
+                Expect(len(apiResponse.Rates)).To(Equal(1))
                 Expect(apiResponse.Rates["VUV"]).To(Equal(105.078218))
             })
         })
@@ -130,6 +131,7 @@ var _ = Describe("GoExample", func() {
                 time.Sleep(1*time.Second)
                 apiResponse := HTTPGetJson("http://127.0.0.1:8080/current_rates")
                 expiration2 = apiResponse.Expiration
+                Expect(len(apiResponse.Rates)).To(Equal(26))
                 Expect(expiration2).To(Equal(expiration1))
             })
         })
@@ -140,6 +142,7 @@ var _ = Describe("GoExample", func() {
                 time.Sleep(2*time.Second)
                 apiResponse := HTTPGetJson("http://127.0.0.1:8080/current_rates")
                 expiration3 = apiResponse.Expiration
+                Expect(len(apiResponse.Rates)).To(Equal(26))
                 Expect(expiration3).To(Not(Equal(expiration1)))
             })
         })
