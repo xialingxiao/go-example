@@ -57,6 +57,7 @@ func getRates(apiID string) (int, []byte) {
     return resp.StatusCode, body
 }
 
+// Cached wraps arround the query to openexchangerates.org and cache the results in memory
 func Cached(getLatest func(string) (int, []byte), apiID string, cacheTime int64) func(w http.ResponseWriter, r *http.Request) {
     return func(w http.ResponseWriter, r *http.Request) {
         w.Header().Set("content-type", "application/json")
