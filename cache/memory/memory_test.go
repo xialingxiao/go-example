@@ -4,7 +4,8 @@ import (
     "testing"
     "time"
     "reflect"
-    "github.com/xialingxiao/go-example/cache/memory"
+    "go-example/cache/memory"
+    // "github.com/xialingxiao/go-example/cache/memory"
 )
 
 func TestGetEmpty(t *testing.T) {

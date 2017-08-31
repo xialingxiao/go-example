@@ -43,7 +43,6 @@ func (s Storage) Get() (map[string]float64, int64) {
     item := s.item
 
     if item.Expired() {
-        s.item = Item{}
         return nil, 0
     }
 
